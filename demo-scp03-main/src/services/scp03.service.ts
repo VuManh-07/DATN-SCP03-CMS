@@ -76,7 +76,7 @@ export class Scp03 {
     this.HostSCP03.cardCryptogram = "";
     this.HostSCP03.hostCryptogram = "";
     this.HostSCP03.S_ENC = "";
-    this.HostSCP03.S_ENC = "";
+    this.HostSCP03.S_MAC = "";
     this.HostSCP03.S_RMAC = "";
     this.HostSCP03.ICV = null;
     this.HostSCP03.EncryptCounter = 0;
