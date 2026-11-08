@@ -1,59 +1,47 @@
 import fs from "fs";
+import path from "path";
 
-// The secret file path must be configured outside source code.
+// Đường dẫn đến tệp chứa các key secret
+const secretsFilePath = path.join("/home/ubuntu/.ssh", "secrets_keys_scp03");
+
 export const readKeySCP03 = async () => {
-  const secretsFilePath = process.env.SCP03_SECRETS_FILE;
+  let scp03_key_mac: string | undefined,
+    scp03_key_enc: string | undefined,
+    scp03_key_dek: string | undefined,
+    scp03_aid: string | undefined;
 
-  if (!secretsFilePath) {
-    throw new Error("SCP03_SECRETS_FILE is required");
+  try {
+    // Kiểm tra quyền đọc tệp
+    await fs.promises.access(secretsFilePath, fs.constants.R_OK);
+    console.log("Tệp có thể đọc được.");
+
+    // Đọc tệp
+    const data = await fs.promises.readFile(secretsFilePath, "utf8");
+
+    // Hiển thị nội dung tệp
+    console.log("Nội dung của tệp secrets_keys_scp03:");
+    console.log(data);
+
+    // Phân tích cú pháp nội dung tệp nếu cần
+    const secrets: any = data.split("\n").reduce((acc, line) => {
+      const [key, value] = line
+        .split("=")
+        .map((part) => part.trim().replace(/^'|'$/g, ""));
+      if (key && value) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+    // Sử dụng key secret
+    console.log("Key secret 1:", secrets);
+    scp03_key_mac = secrets.scp03_key_mac;
+    scp03_key_enc = secrets.scp03_key_enc;
+    scp03_key_dek = secrets.scp03_key_dek;
+    scp03_aid = secrets.scp03_aid;
+  } catch (err) {
+    console.error("Lỗi khi đọc tệp secrets_keys_scp03:", err);
   }
 
-  const data = await fs.promises.readFile(secretsFilePath, "utf8");
-
-  const secrets: Record<string, string> = {};
-
-  for (const line of data.split(/\r?\n/)) {
-    const trimmed = line.trim();
-
-    if (!trimmed || trimmed.startsWith("#")) {
-      continue;
-    }
-
-    const separator = trimmed.indexOf("=");
-
-    if (separator < 1) {
-      continue;
-    }
-
-    const key = trimmed.slice(0, separator).trim();
-    const value = trimmed
-      .slice(separator + 1)
-      .trim()
-      .replace(/^['"]|['"]$/g, "");
-
-    if (key && value) {
-      secrets[key] = value;
-    }
-  }
-
-  const scp03_key_mac = secrets.scp03_key_mac;
-  const scp03_key_enc = secrets.scp03_key_enc;
-  const scp03_key_dek = secrets.scp03_key_dek;
-  const scp03_aid = secrets.scp03_aid;
-
-  if (
-    !scp03_key_mac ||
-    !scp03_key_enc ||
-    !scp03_key_dek ||
-    !scp03_aid
-  ) {
-    throw new Error("Missing required SCP03 key material");
-  }
-
-  return {
-    scp03_key_mac,
-    scp03_key_enc,
-    scp03_key_dek,
-    scp03_aid,
-  };
+  return { scp03_key_mac, scp03_key_enc, scp03_key_dek, scp03_aid };
 };

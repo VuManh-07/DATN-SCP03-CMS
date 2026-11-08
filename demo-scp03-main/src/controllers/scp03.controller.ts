@@ -13,37 +13,25 @@ import ECDHServer from "../services/ECDH.service";
 import { readKeySCP03 } from "../helpers/read.key.scp03";
 
 class Scp03Controller {
-  private readonly sessions = new Map<string, ECDHServer>();
-
-private getSessionDh(entityId: string): ECDHServer {
-  if (!entityId) {
-    throw new NotFoundError("Entity ID is required");
-  }
-
-  const dh = this.sessions.get(String(entityId));
-
-  if (!dh) {
-    throw new NotFoundError(
-      "ECDH session not found or server restarted"
-    );
-  }
-
-  return dh;
-}
+  public dh: ECDHServer;
 
   constructor() {
-
+    this.dh = new ECDHServer();
     this.hostChallenge = this.hostChallenge.bind(this);
   }
 
   async hostChallenge(req: Request, res: Response, next: NextFunction) {
     const { clientPublicKey } = req.body;
 
-    const dh = new ECDHServer();
-    const sharedSecret = dh.computeSharedKey(clientPublicKey);
+    const sharedSecret = this.dh.computeSharedKey(clientPublicKey);
     // const scp03Key = await readKeySCP03();       // pro
     // const scp03Key = await findKeySpc03ByUser(); // dev
-    const scp03Key = await readKeySCP03();
+    const scp03Key = {
+      scp03_key_mac: "404142434445464748494A4B4C4D4E4F",
+      scp03_key_enc: "404142434445464748494A4B4C4D4E4F",
+      scp03_key_dek: "404142434445464748494A4B4C4D4E4F",
+      scp03_aid: "A00001020304",
+    };
     if (!scp03Key) throw new NotFoundError("Scp03 key not found!");
 
     const scp03init = new Scp03Init({
@@ -63,14 +51,13 @@ private getSessionDh(entityId: string): ECDHServer {
       (symbol) => symbol.toString() === "Symbol(entityId)"
     );
     const entityId = scp03InitRedis[entityIdSymbol as any];
-    this.sessions.set(String(entityId), dh);
 
     new OK({
       message: "OK",
       metadata: {
         hostChallenge,
         entityId,
-        serverPublicKey: dh.getPublicKeyBase64(),
+        serverPublicKey: this.dh.getPublicKeyBase64(),
       },
     }).send(res);
   }
@@ -78,7 +65,7 @@ private getSessionDh(entityId: string): ECDHServer {
   async initHostSCP03(req: Request, res: Response, next: NextFunction) {
     const cardParam = req.body.cardParam;
     const entityId = req.body.entityId;
-
+    console.log({ cardParam, entityId });
 
     const scp03Init = await getScp03Init(entityId);
     if (
@@ -185,9 +172,9 @@ private getSessionDh(entityId: string): ECDHServer {
   wrap = async (req: Request, res: Response, next: NextFunction) => {
     const { command, data, entityId } = req.body;
 
-    const dataDecrypto = await this.getSessionDh(entityId).decrypt(data);
+    const dataDecrypto = await this.dh.decrypt(data);
 
-
+    console.log({ dataDecrypto: JSON.parse(dataDecrypto) });
 
     const scp03Init = await getScp03Init(entityId);
 
@@ -204,7 +191,7 @@ private getSessionDh(entityId: string): ECDHServer {
 
     await updateScp03Init(entityId, scp03);
 
-    const dataEncrypt = await this.getSessionDh(entityId).encrypt(JSON.stringify(_data));
+    const dataEncrypt = await this.dh.encrypt(JSON.stringify(_data));
 
     new OK({
       message: "OK",
@@ -218,7 +205,7 @@ private getSessionDh(entityId: string): ECDHServer {
   unwrap = async (req: Request, res: Response, next: NextFunction) => {
     const { data, entityId } = req.body;
 
-    const dataDecrypto = await this.getSessionDh(entityId).decrypt(data);
+    const dataDecrypto = await this.dh.decrypt(data);
 
     const scp03Init = await getScp03Init(entityId);
     if (
@@ -234,7 +221,7 @@ private getSessionDh(entityId: string): ECDHServer {
 
     await updateScp03Init(entityId, scp03);
 
-    const _dataEncrypt = await this.getSessionDh(entityId).encrypt(JSON.stringify(_data));
+    const _dataEncrypt = await this.dh.encrypt(JSON.stringify(_data));
 
     new OK({
       message: "OK",
@@ -252,7 +239,7 @@ private getSessionDh(entityId: string): ECDHServer {
 
     new OK({
       message: "OK",
-      metadata: await deleteScp03Init(entityId).then((result) => { this.sessions.delete(String(entityId)); return result; }),
+      metadata: await deleteScp03Init(entityId),
     }).send(res);
   };
 }
