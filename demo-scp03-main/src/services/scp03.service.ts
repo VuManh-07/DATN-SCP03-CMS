@@ -2,7 +2,6 @@
 
 import { AesCmac } from "aes-cmac";
 import CryptoJS from "crypto-js";
-import { randomBytes } from "crypto";
 
 const macKey = new Uint8Array(16);
 
@@ -76,7 +75,7 @@ export class Scp03 {
     this.HostSCP03.cardCryptogram = "";
     this.HostSCP03.hostCryptogram = "";
     this.HostSCP03.S_ENC = "";
-    this.HostSCP03.S_MAC = "";
+    this.HostSCP03.S_ENC = "";
     this.HostSCP03.S_RMAC = "";
     this.HostSCP03.ICV = null;
     this.HostSCP03.EncryptCounter = 0;
@@ -249,15 +248,15 @@ export class Scp03 {
     this.HostSCP03.hostCryptogram = Buffer.from(
       this.HostSCP03.hostCryptogram
     ).toString("hex");
-
+    console.log("Host Cryptogram:", this.HostSCP03.hostCryptogram);
     return {
       hostCryptogram: this.HostSCP03.hostCryptogram,
     };
   }
   async HostChallenge() {
-    const dataHex = randomBytes(8).toString("hex");
-
-
+    const dataInt = Math.floor(Math.random() * 1000000000000000);
+    let dataHex = dataInt.toString(16);
+    dataHex = dataHex.padStart(16, "0");
     this.HostSCP03.hostChallenge = dataHex;
     return { hostChallenge: dataHex };
   }

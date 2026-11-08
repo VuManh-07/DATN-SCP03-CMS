@@ -1,7 +1,6 @@
 "use strict";
 
 import { Repository } from "redis-om";
-import { sealSensitiveFields, unsealSensitiveFields } from "../../helpers/scp03RedisCrypto";
 import Scp03InitSchema from "../scp03.model";
 import { getRedis } from "../../dbs/redis.init";
 
@@ -10,7 +9,7 @@ const saveScp03Init = async (payload: any) => {
 
   const scp03Repository = new Repository(Scp03InitSchema, redisInstance);
 
-  return await scp03Repository.save(sealSensitiveFields({
+  return await scp03Repository.save({
     Key_MAC: payload.Key_MAC,
     Key_ENC: payload.Key_ENC,
     Key_DEK: payload.Key_DEK,
@@ -44,7 +43,7 @@ const saveScp03Init = async (payload: any) => {
 
     //diffie helman
     sharedSecret: payload.sharedSecret,
-  }));
+  });
 };
 
 const getScp03Init = async (id: string) => {
@@ -137,9 +136,9 @@ const updateScp03Init = async (id: string, updatedData: any) => {
       host_EncryptCounter: updatedData.HostSCP03.EncryptCounter,
 
       //diffie helman
-      sharedSecret: updatedData.sharedSecret,
+      sharedSecret: updatedData.SharedSecret,
     });
-    sealSensitiveFields(scp03);
+    return await scp03Repository.save(scp03);
   } catch (error) {
     console.log(error, "error");
     throw error;
