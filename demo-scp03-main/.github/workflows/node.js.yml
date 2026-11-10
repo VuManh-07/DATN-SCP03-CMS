@@ -1,0 +1,50 @@
+name: Node.js CICD FidecScp03
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Remove Git index.lock if it exists
+        run: |
+          if [ -f "/home/ubuntu/actions-runner/_work/Fidec.Scp03/Fidec.Scp03/.git/index.lock" ]; then
+            rm -f /home/ubuntu/actions-runner/_work/Fidec.Scp03/Fidec.Scp03/.git/index.lock
+          fi
+
+      - run: npm install
+      - run: npm ci
+
+      - name: Install PM2 (if not installed)
+        run: npm install -g pm2
+
+      - name: Stop existing PM2 process if running
+        run: |
+          if pm2 info Fidec.Scp03 > /dev/null; then
+            pm2 stop Fidec.Scp03
+            pm2 delete Fidec.Scp03
+          fi
+
+      - name: Build the project
+        run: npm run build
+
+      - name: Start PM2 process
+        run: pm2 start npm --name Fidec.Scp03 -- run server:pro
+
+      - name: Save PM2 process list
+        run: pm2 save
